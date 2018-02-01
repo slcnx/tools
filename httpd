@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# httpd        Startup script for the Apache HTTP Server
+#
+# chkconfig: - 85 15
+# description: The Apache HTTP Server is an efficient and extensible  \
+#	       server implementing the current HTTP standards.
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/httpd ]; then
+        . /etc/sysconfig/httpd
+fi
+httpd=${HTTPD-/usr/local/httpd22-prefork/bin/httpd}
+prog=httpd
+pidfile=${PIDFILE-/var/run/httpd/httpd.pid}
+lockfile=${LOCKFILE-/var/lock/subsys/httpd}
+start() {
+        $httpd  $OPTIONS
+        [ $? = 0 ] && touch ${lockfile} 
+}
+stop() {
+	kill -9 `pgrep $prog`
+	[ $? = 0 ] && rm -f ${lockfile} ${pidfile}
+}
+
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        status -p ${pidfile} $httpd
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|status}"
+	RETVAL=2
+esac
+
+exit $RETVAL
