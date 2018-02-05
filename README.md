@@ -21,3 +21,7 @@ pick_a_head.sh
 
 nginx.sh
 	1、编译安装nginx，为其提供systemd服务脚本;
+
+zabbix_mariadb_gui.tar.xz
+
+	1、安装DB --> 安装server --> 安装GUI
