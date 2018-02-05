@@ -14,3 +14,8 @@ ca.sh
 httpd-2.2.tar.xz
 
 	1、centos7系统下实现httpd-2.2的安装，并分别实现prefork、worker、event等几种工作方式
+
+pick_a_head.sh
+
+	1、写一个脚本，能从所有同学中随机挑选一个同学回答问题；进一步地：可接受一个参数，做为要挑选的同学的个数；
+
