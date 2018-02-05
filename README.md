@@ -20,8 +20,9 @@ pick_a_head.sh
 	1、写一个脚本，能从所有同学中随机挑选一个同学回答问题；进一步地：可接受一个参数，做为要挑选的同学的个数；
 
 nginx.sh
+
 	1、编译安装nginx，为其提供systemd服务脚本;
 
 zabbix_mariadb_gui.tar.xz
 
-	1、安装DB --> 安装server --> 安装GUI
+	1、安装DB --> 安装server --> 安装GUI --> 安装Agent
