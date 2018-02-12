@@ -4,11 +4,17 @@
 #
 
 trap 'exit' INT
+mysql_user='root'
+mysql_host='localhost'
 
-yum -y install vsftpd mariadb-server mariadb-devel pam-devel
-yum -y groupinstall "Development Tools" "Server Platform Development"
+grant_database='vsftpd'
+grant_user='vsftpd'
+grant_host='127.0.0.1'
+grant_password='vsftpd'
 
-
+yum -y -d 0 -e 0 install vsftpd mariadb-server mariadb-devel pam-devel
+# ---------------------- complie pam_mysql.so for vsftpd-----------------------
+yum -y -d 0 -e 0 groupinstall "Development Tools" "Server Platform Development"
 until [ -f /usr/lib64/security/pam_mysql.so ]; do
     [ -f pam_mysql-0.7RC1.tar.gz ] || wget http://prdownloads.sourceforge.net/pam-mysql/pam_mysql-0.7RC1.tar.gz
     [ -d pam_mysql-0.7RC1 ] || tar xf pam_mysql-0.7RC1.tar.gz
@@ -18,24 +24,50 @@ until [ -f /usr/lib64/security/pam_mysql.so ]; do
     make install
 done
 
-until mysql -uvsftpd -h127.0.0.1 -pvsftpd -e 'SELECT now()'; do
-    grep -q 'skip_name_resolve=ON' /etc/my.cnf.d/server.cnf \
-    && grep -q 'innodb_file_per_table=ON' /etc/my.cnf.d/server.cnf \
-    && grep -q 'log_bin=mysql-bin' /etc/my.cnf.d/server.cnf || sed -i '/\[server\]/a skip_name_resolve=ON\ninnodb_file_per_table=ON\nlog_bin=mysql-bin' /etc/my.cnf.d/server.cnf 
+# configure mariadb 
+cat > /etc/my.cnf << EOF
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+symbolic-links=0
+skip_name_resolve = ON
+innodb_file_per_table = ON
+log_bin=mysql-bin
+[mysqld_safe]
+log-error=/var/log/mariadb/mariadb.log
+pid-file=/var/run/mariadb/mariadb.pid
+!includedir /etc/my.cnf.d
+EOF
+# start mariadb service
+systemctl restart mariadb.service
 
-    systemctl restart mariadb.service
 
-    mysql -uroot -hlocalhost  -e "CREATE DATABASE vsftpd;" \
-    && mysql -uroot -hlocalhost  -e "GRANT ALL ON vsftpd.* TO 'vsftpd'@'127.0.0.1' IDENTIFIED BY 'vsftpd';" \
-    && mysql -uroot -hlocalhost  -e "CREATE TABLE vsftpd.users(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(60) NOT NULL, password CHAR(48) NOT NULL, UNIQUE KEY(name));"\
-    && mysql -uroot -hlocalhost  -e "INSERT INTO vsftpd.users(name,password) VALUES ('tom',PASSWORD('magedu')),('jerry',PASSWORD('jerry'));"
+# configure env
+if ! mysql -u$mysql_user -h$mysql_host  -D ${grant_database} -e 'SHOW TABLES' &> /dev/null; then
+    mysql -u$mysql_user -h$mysql_host  -e "CREATE DATABASE ${grant_database};" \
+    && mysql -u$mysql_user -h$mysql_host  -e "GRANT ALL ON ${grant_database}.* TO '${grant_database}'@'$grant_host' IDENTIFIED BY '${grant_password}';" \
+    && mysql -u$mysql_user -h$mysql_host  -e "CREATE TABLE ${grant_database}.users(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(60) NOT NULL, password CHAR(48) NOT NULL, UNIQUE KEY(name));"
+fi  
 
+# create user
+while true; do
+	echo -e 'Start create users, until input "\033[1;31mquit\033[0m"'
+	read -p "Enter a username: " username
+	[ -z "$username" ] && continue
+	[ "$username" == "quit" -o "$password" == "quit" ] && break
+	read -p "Enter a password: " password
+	[ -z "$username" ] && continue
+	[ "$username" == "quit" -o "$password" == "quit" ] && break
+	mysql -u$mysql_user -h$mysql_host  -e "INSERT INTO ${grant_database}.users(name,password) VALUES (\"$username\",PASSWORD(\"$password\"));" && users[${#users[@]}]=$username
 done
-[ -s /etc/pam.d/vsftpd.vusers ] || cat > /etc/pam.d/vsftpd.vusers << EOF
-auth required /usr/lib64/security/pam_mysql.so user=vsftpd passwd=vsftpd host=127.0.0.1 db=vsftpd table=users usercolumn=name passwdcolumn=password crypt=2
-account required /usr/lib64/security/pam_mysql.so user=vsftpd passwd=vsftpd host=127.0.0.1 db=vsftpd table=users usercolumn=name passwdcolumn=password crypt=2
+
+# pam configure file
+cat > /etc/pam.d/vsftpd.vusers << EOF
+auth required /usr/lib64/security/pam_mysql.so user=${grant_user} passwd=${grant_password} host=${grant_host} db=${grant_database} table=users usercolumn=name passwdcolumn=password crypt=2
+account required /usr/lib64/security/pam_mysql.so user=${grant_user} passwd=${grant_password} host=${grant_host} db=${grant_database}  table=users usercolumn=name passwdcolumn=password crypt=2
 EOF
 
+# vsftpd.conf add virtual user 
 [ -f /etc/vsftpd/vsftpd.conf.bak ] ||  cp /etc/vsftpd/vsftpd.conf{,.bak}
 sed -i 's/\(pam_service_name=\).*/\1vsftpd.vusers/' /etc/vsftpd/vsftpd.conf
 grep -q 'guest_enable=TRUE' /etc/vsftpd/vsftpd.conf \
@@ -75,21 +107,30 @@ grep -q "user_config_dir"  /etc/vsftpd/vsftpd.conf || echo "user_config_dir=$sha
  
 # --------------配置上传、删除权限 -------------- 
 install -d -o vuser -g vuser ${dir}/vuser/upload
-read -p 'username: ' userName
-[ -n "$userName" ] || exit
 
+while true; do
+	echo -e 'add user,  until input "\033[1;31mquit\033[0m"'
+	read -p 'Enter a username: ' user
+	[ "$user" == "quit" ] && break
+	[ -f ${share_dir}/$user ] && users[${#users[@]}]=$user || continue
+done
 
+for i in ${users[@]}; do
+echo "configure $i user permission....., Please input YES or NO, default is NO"
 read -p 'download? ' d
+[ "$d" = "YES" ] && permission[${#permission[@]}]='download'
 [ "$d" != "YES" ] && d=NO
 read -p 'upload? ' u
+[ "$u" = "YES" ] && permission[${#permission[@]}]='upload'
 [ "$u" != "YES" ] && u=NO
 read -p 'mkdir? ' m
+[ "$m" = "YES" ] && permission[${#permission[@]}]='mkdir'
 [ "$m" != "YES" ] && m=NO
 read -p 'writeable? ' w
+[ "$w" = "YES" ] && permission[${#permission[@]}]='write'
 [ "$w" != "YES" ] && w=NO
-
-echo "-------------- 给$userName配置上传、删除权限 --------------"
-cat > $share_dir/$userName << EOF
+echo "-------------- 给${i}配置${permission[@]} --------------"
+cat > $share_dir/${i} << EOF
 anonymous_enable=$d
 anon_upload_enable=$u
 anon_mkdir_write_enable=$m
@@ -97,6 +138,4 @@ anon_other_write_enable=$w
 anon_umask=022
 EOF
 [ $? -eq 0 ] && echo "OK"
-
-# 注释：anon_umask必须设置其它用户可读，否则创建的目录下的所有文件不可见;
-
+done
