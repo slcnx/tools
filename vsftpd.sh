@@ -139,3 +139,4 @@ anon_umask=022
 EOF
 [ $? -eq 0 ] && echo "OK"
 done
+ # 注释：anon_umask必须设置其它用户可读，否则创建的目录下的所有文件不可见;
