@@ -23,6 +23,8 @@ until [ -f /usr/lib64/security/pam_mysql.so ]; do
     make 
     make install
 done
+ls /usr/lib64/security/pam_mysql.so
+sleep 2
 
 # configure mariadb 
 cat > /etc/my.cnf << EOF
@@ -78,11 +80,11 @@ EOF
 
 # 准备虚拟用户的家目录
 dir='/zz'
-[ -d $dir ] || mkdir -p $dir
-id vuser && usermod -d ${dir}/vuser vuser || useradd -d ${dir}/vuser vuser
+[ -d $dir ] || mkdir -p $dir 
+id vuser &> /dev/null && usermod -d ${dir}/vuser vuser &> /dev/null || useradd -d ${dir}/vuser vuser &> /dev/null
 
 # 要求：1. 家目录没有写权限；2. 所有用户均有其它用户有rx权限
-chmod 555 ${dir}/vuser
+chmod 555 ${dir}/vuser &> /dev/null
 
 # 准备一个公共可下载目录
 [ -d ${dir}/vuser/pub ] || mkdir  -p ${dir}/vuser/pub
@@ -98,10 +100,11 @@ systemctl restart vsftpd.service
 # lftp tom@172.16.0.6:/pub> put issue
 # put: Access failed: 550 Permission denied. (issue)
 # ...
-# 结果，只能下载，不能上传，不能删除；
+# 结果，只能下载(默认权限)，不能上传，不能删除；
 
 # -------------- 配置 虚拟用户可分配权限 -------------- 
 share_dir='/etc/vsftpd/vusers_config'
+echo -e "vuser configure dir : \033[1;31m$share_dir\033[0m"
 [ -d $share_dir ] || install -d $share_dir
 grep -q "user_config_dir"  /etc/vsftpd/vsftpd.conf || echo "user_config_dir=$share_dir" >>  /etc/vsftpd/vsftpd.conf
  
@@ -109,7 +112,7 @@ grep -q "user_config_dir"  /etc/vsftpd/vsftpd.conf || echo "user_config_dir=$sha
 install -d -o vuser -g vuser ${dir}/vuser/upload
 
 while true; do
-	echo -e 'add user,  until input "\033[1;31mquit\033[0m"'
+	echo -e 'configure exist user,  until input "\033[1;31mquit\033[0m"'
 	read -p 'Enter a username: ' user
 	[ "$user" == "quit" ] && break
 	[ -f ${share_dir}/$user ] && users[${#users[@]}]=$user || continue
