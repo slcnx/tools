@@ -45,7 +45,6 @@ cat > /etc/shadowsocks.json << EOF
     "method":"aes-256-cfb"
 }
 EOF
-vim /etc/shadowsocks.json
 useradd shadowsocks
 
 cat > start.sh << EOF
