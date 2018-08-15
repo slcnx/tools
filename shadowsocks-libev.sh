@@ -2,7 +2,7 @@
 #
 yum -y install epel-release
 yum -y install git
-yum -y install gettext gcc autoconf libtool automake make asciidoc xmlto c-ares-devel libev-devel autoconf automake libtool gettext pkg-config libmbedtls libsodium libpcre3 libev libc-ares asciidoc xmlto gettext gcc autoconf libtool automake make asciidoc xmlto c-ares-devel libev-devel pcre-devel
+yum -y install openssl-devel gettext gcc autoconf libtool automake make asciidoc xmlto c-ares-devel libev-devel autoconf automake libtool gettext pkg-config libmbedtls libsodium libpcre3 libev libc-ares asciidoc xmlto gettext gcc autoconf libtool automake make asciidoc xmlto c-ares-devel libev-devel pcre-devel
 
 git clone https://github.com/shadowsocks/shadowsocks-libev.git
 cd shadowsocks-libev
@@ -57,4 +57,7 @@ cat > stop.sh << EOF
 EOF
 chmod +x start.sh stop.sh
 
+
+cd ~
+rm -fr shadowsocks-libev 
 
