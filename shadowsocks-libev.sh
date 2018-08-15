@@ -48,7 +48,7 @@ EOF
 useradd shadowsocks
 
 cat > start.sh << EOF
-	nohup /usr/local/bin/ss-manager --manager-address /tmp/shadowsocks.sock -c /etc/shadowsocks.json -a shadowsocks start &> /dev/null &
+	nohup /usr/local/bin/ss-manager -u --manager-address /tmp/shadowsocks.sock -c /etc/shadowsocks.json -a shadowsocks start &> /dev/null &
 EOF
 
 cat > stop.sh << EOF
