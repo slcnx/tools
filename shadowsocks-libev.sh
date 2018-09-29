@@ -35,7 +35,7 @@ make install
 
 cat > /etc/shadowsocks.json << EOF
 {
-    "server":"107.172.67.44",
+    "server":"xxx.xxx.xx.xx",
     "local_address":"127.0.0.1",
     "lcoal_port":1080,
     "port_password": {
@@ -47,15 +47,21 @@ cat > /etc/shadowsocks.json << EOF
 EOF
 useradd shadowsocks
 
-cat > start.sh << EOF
-	nohup /usr/local/bin/ss-manager -u --manager-address /tmp/shadowsocks.sock -c /etc/shadowsocks.json -a shadowsocks start &> /dev/null &
+cat > /etc/systemd/system/ss.service << EOF
+[Unit]
+Description=ShadowSocks libev
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/usr/local/bin/ss-manager -u --manager-address /tmp/shadowsocks.sock -c /etc/shadowsocks.json -a shadowsocks start
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-cat > stop.sh << EOF
-	pkill ss-manager
-EOF
-chmod +x start.sh stop.sh
+systemctl daemon-reload
 
+systemctl status ss.service
 
 cd ~
 rm -fr shadowsocks-libev 
