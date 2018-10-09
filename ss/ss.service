@@ -1,0 +1,9 @@
+[Unit]
+Description=ShadowSocks libev
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/usr/local/bin/ss-manager -u --manager-address /tmp/shadowsocks.sock -c /etc/shadowsocks.json -a shadowsocks start
+
+[Install]
+WantedBy=multi-user.target

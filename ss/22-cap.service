@@ -1,0 +1,9 @@
+[Unit]
+Description=port 22 cap
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/usr/sbin/tcpdump -i venet0:0  -C 1 -Z root -nn port 22 -w  /root/sslog/22.cap
+
+[Install]
+WantedBy=multi-user.target
